@@ -34,7 +34,7 @@ router.post('/', requireAuth, upload.single('sketch'), async (req: Request, res:
 
     // Call Gemini 2.0 Flash (new SDK @google/genai — uses v1 API)
     const result = await ai.models.generateContent({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-2.5-flash',
       contents: [
         {
           role: 'user',
