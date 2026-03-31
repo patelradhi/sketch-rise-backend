@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from 'express'
 import multer from 'multer'
 import sharp from 'sharp'
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import { GoogleGenAI } from '@google/genai'
 import { requireAuth, getUserId } from '../middleware/clerkAuth'
 import Project from '../models/Project'
 import User from '../models/User'
@@ -10,8 +10,7 @@ import { SHARP_TARGET_SIZE } from '../lib/constants'
 
 const router = Router()
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } })
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY ?? '')
-const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-8b' })
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY ?? '' })
 
 router.post('/', requireAuth, upload.single('sketch'), async (req: Request, res: Response) => {
   try {
@@ -33,13 +32,21 @@ router.post('/', requireAuth, upload.single('sketch'), async (req: Request, res:
 
     const base64Image = compressed.toString('base64')
 
-    // Call Gemini API (free tier — 1500 req/day)
-    const result = await model.generateContent([
-      { inlineData: { data: base64Image, mimeType: 'image/jpeg' } },
-      CLAUDE_PROMPT,
-    ])
+    // Call Gemini 2.0 Flash (new SDK @google/genai — uses v1 API)
+    const result = await ai.models.generateContent({
+      model: 'gemini-2.0-flash',
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            { inlineData: { data: base64Image, mimeType: 'image/jpeg' } },
+            { text: CLAUDE_PROMPT },
+          ],
+        },
+      ],
+    })
 
-    const rawText = result.response.text()
+    const rawText = result.text ?? ''
     // Strip any accidental markdown fences
     const clean = rawText.replace(/```json?\n?/g, '').replace(/```/g, '').trim()
     const renderData = JSON.parse(clean)
