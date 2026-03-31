@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from 'express'
 import multer from 'multer'
 import sharp from 'sharp'
-import Anthropic from '@anthropic-ai/sdk'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 import { requireAuth, getUserId } from '../middleware/clerkAuth'
 import Project from '../models/Project'
 import User from '../models/User'
@@ -10,7 +10,8 @@ import { SHARP_TARGET_SIZE } from '../lib/constants'
 
 const router = Router()
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } })
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY ?? '')
+const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
 
 router.post('/', requireAuth, upload.single('sketch'), async (req: Request, res: Response) => {
   try {
@@ -32,26 +33,13 @@ router.post('/', requireAuth, upload.single('sketch'), async (req: Request, res:
 
     const base64Image = compressed.toString('base64')
 
-    // Call Claude API
-    const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 4096,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'image',
-              source: { type: 'base64', media_type: 'image/jpeg', data: base64Image },
-            },
-            { type: 'text', text: CLAUDE_PROMPT },
-          ],
-        },
-      ],
-    })
+    // Call Gemini API (free tier — 1500 req/day)
+    const result = await model.generateContent([
+      { inlineData: { data: base64Image, mimeType: 'image/jpeg' } },
+      CLAUDE_PROMPT,
+    ])
 
-    // Parse Claude's JSON response
-    const rawText = response.content[0].type === 'text' ? response.content[0].text : ''
+    const rawText = result.response.text()
     // Strip any accidental markdown fences
     const clean = rawText.replace(/```json?\n?/g, '').replace(/```/g, '').trim()
     const renderData = JSON.parse(clean)
@@ -75,7 +63,7 @@ router.post('/', requireAuth, upload.single('sketch'), async (req: Request, res:
   } catch (err) {
     console.error('[analyze]', err)
     if (err instanceof SyntaxError) {
-      return res.status(422).json({ error: 'Claude returned unparseable data. Please try again.' })
+      return res.status(422).json({ error: 'AI returned unparseable data. Please try again.' })
     }
     return res.status(500).json({ error: 'Internal server error' })
   }
