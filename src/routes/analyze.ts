@@ -47,9 +47,15 @@ router.post('/', requireAuth, upload.single('sketch'), async (req: Request, res:
     })
 
     const rawText = result.text ?? ''
-    // Strip any accidental markdown fences
-    const clean = rawText.replace(/```json?\n?/g, '').replace(/```/g, '').trim()
-    const renderData = JSON.parse(clean)
+
+    // Gemini 2.5 sometimes wraps response in markdown or adds thinking text
+    // Strategy: extract the first { ... } JSON block found in the response
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/)
+    if (!jsonMatch) {
+      console.error('[analyze] No JSON found in Gemini response:', rawText.slice(0, 300))
+      return res.status(422).json({ error: 'AI could not parse the floor plan. Please try a clearer image.' })
+    }
+    const renderData = JSON.parse(jsonMatch[0])
 
     // Auto-save project
     const project = await Project.create({
