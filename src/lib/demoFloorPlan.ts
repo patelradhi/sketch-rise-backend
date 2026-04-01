@@ -1,0 +1,80 @@
+// Demo floor plan used when DEMO_MODE=true or as fallback
+export const DEMO_FLOOR_PLAN = {
+  rooms: [
+    {
+      id: 'room_1',
+      type: 'living_room',
+      label: 'Living Room',
+      position: { x: 0, y: 0, z: 0 },
+      dimensions: { width: 5.5, height: 3.0, depth: 4.5 },
+      floor_material: 'hardwood',
+      wall_color: '#F5F5F0',
+      furniture: [
+        { type: 'sofa', position: { x: 1.0, y: 0, z: 1.0 }, rotation: 0, dimensions: { width: 2.2, depth: 0.9 } },
+        { type: 'dining_table', position: { x: 3.5, y: 0, z: 2.0 }, rotation: 0, dimensions: { width: 1.5, depth: 0.9 } },
+      ],
+    },
+    {
+      id: 'room_2',
+      type: 'bedroom',
+      label: 'Master Bedroom',
+      position: { x: 6.0, y: 0, z: 0 },
+      dimensions: { width: 4.2, height: 3.0, depth: 4.0 },
+      floor_material: 'carpet',
+      wall_color: '#F5F5F0',
+      furniture: [
+        { type: 'bed', position: { x: 1.0, y: 0, z: 1.5 }, rotation: 0, dimensions: { width: 1.6, depth: 2.0 } },
+        { type: 'desk', position: { x: 3.2, y: 0, z: 0.5 }, rotation: 0, dimensions: { width: 1.2, depth: 0.6 } },
+      ],
+    },
+    {
+      id: 'room_3',
+      type: 'kitchen',
+      label: 'Kitchen',
+      position: { x: 0, y: 0, z: 5.0 },
+      dimensions: { width: 3.5, height: 3.0, depth: 3.0 },
+      floor_material: 'tile',
+      wall_color: '#F5F5F0',
+      furniture: [
+        { type: 'stove', position: { x: 0.5, y: 0, z: 0.5 }, rotation: 0, dimensions: { width: 0.6, depth: 0.6 } },
+        { type: 'sink', position: { x: 2.0, y: 0, z: 0.5 }, rotation: 0, dimensions: { width: 0.5, depth: 0.4 } },
+      ],
+    },
+    {
+      id: 'room_4',
+      type: 'bathroom',
+      label: 'Bathroom',
+      position: { x: 4.0, y: 0, z: 5.0 },
+      dimensions: { width: 2.5, height: 3.0, depth: 3.0 },
+      floor_material: 'tile',
+      wall_color: '#F5F5F0',
+      furniture: [
+        { type: 'toilet', position: { x: 0.5, y: 0, z: 0.5 }, rotation: 0, dimensions: { width: 0.4, depth: 0.6 } },
+        { type: 'bathtub', position: { x: 1.2, y: 0, z: 0.5 }, rotation: 0, dimensions: { width: 0.75, depth: 1.5 } },
+      ],
+    },
+  ],
+  walls: [
+    { id: 'w1', start: { x: 0, z: 0 }, end: { x: 11.0, z: 0 }, height: 2.8, thickness: 0.15 },
+    { id: 'w2', start: { x: 0, z: 0 }, end: { x: 0, z: 8.5 }, height: 2.8, thickness: 0.15 },
+    { id: 'w3', start: { x: 11.0, z: 0 }, end: { x: 11.0, z: 8.5 }, height: 2.8, thickness: 0.15 },
+    { id: 'w4', start: { x: 0, z: 8.5 }, end: { x: 11.0, z: 8.5 }, height: 2.8, thickness: 0.15 },
+    { id: 'w5', start: { x: 5.5, z: 0 }, end: { x: 5.5, z: 4.5 }, height: 2.8, thickness: 0.15 },
+    { id: 'w6', start: { x: 0, z: 4.5 }, end: { x: 11.0, z: 4.5 }, height: 2.8, thickness: 0.15 },
+    { id: 'w7', start: { x: 3.5, z: 4.5 }, end: { x: 3.5, z: 8.5 }, height: 2.8, thickness: 0.15 },
+  ],
+  doors: [
+    { id: 'd1', wall_id: 'w5', position: { x: 5.5, z: 2.0 }, width: 0.9, swing: 'left' },
+    { id: 'd2', wall_id: 'w6', position: { x: 2.0, z: 4.5 }, width: 0.9, swing: 'right' },
+    { id: 'd3', wall_id: 'w6', position: { x: 7.0, z: 4.5 }, width: 0.9, swing: 'left' },
+    { id: 'd4', wall_id: 'w7', position: { x: 3.5, z: 6.5 }, width: 0.8, swing: 'right' },
+  ],
+  windows: [
+    { id: 'win1', wall_id: 'w1', position: { x: 2.5, z: 0 }, width: 1.2, height: 1.0, sill_height: 0.9 },
+    { id: 'win2', wall_id: 'w1', position: { x: 8.0, z: 0 }, width: 1.2, height: 1.0, sill_height: 0.9 },
+    { id: 'win3', wall_id: 'w4', position: { x: 2.0, z: 8.5 }, width: 1.0, height: 1.0, sill_height: 0.9 },
+  ],
+  total_area_sqm: 72.5,
+  building_type: 'residential',
+  estimated_scale: '1:50',
+}

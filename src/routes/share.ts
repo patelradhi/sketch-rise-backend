@@ -1,17 +1,18 @@
-import { Router, type Request, type Response } from 'express'
+import { Router } from 'express'
 import Project from '../models/Project'
+import { ok, fail } from '../utils/apiResponse'
+import { asyncWrapper } from '../utils/asyncWrapper'
 
 const router = Router()
 
-// GET /api/share/:token — public, no auth required
-router.get('/:token', async (req: Request, res: Response) => {
+// GET /api/v1/share/:token — public, no auth
+router.get('/:token', asyncWrapper(async (req, res) => {
   const project = await Project.findOne({
     shareToken: req.params.token,
     isPublic: true,
   }).lean()
-
-  if (!project) return res.status(404).json({ error: 'Share link not found or expired' })
-  res.json(project)
-})
+  if (!project) return fail(res, 'Share link not found or expired', 404)
+  return ok(res, { project })
+}))
 
 export default router

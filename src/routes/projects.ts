@@ -1,26 +1,49 @@
-import { Router, type Request, type Response } from 'express'
+import { Router } from 'express'
 import { requireAuth, getUserId } from '../middleware/clerkAuth'
 import Project from '../models/Project'
+import { ok, fail } from '../utils/apiResponse'
+import { asyncWrapper } from '../utils/asyncWrapper'
 
 const router = Router()
 
-// GET /api/projects — list all projects for current user
-router.get('/', requireAuth, async (req: Request, res: Response) => {
+// POST /api/v1/projects — save new project (renderData comes from Puter.js frontend)
+router.post('/', requireAuth, asyncWrapper(async (req, res) => {
   const userId = getUserId(req)
-  const projects = await Project.find({ userId }).sort({ createdAt: -1 }).lean()
-  res.json(projects)
-})
+  if (!userId) return fail(res, 'Unauthorized', 401)
 
-// GET /api/projects/:id
-router.get('/:id', requireAuth, async (req: Request, res: Response) => {
+  const { title, renderData, originalSketchBase64 } = req.body
+  if (!renderData) return fail(res, 'renderData is required')
+
+  const project = await Project.create({
+    userId,
+    title: title ?? 'Untitled Project',
+    renderData,
+    originalSketchBase64,
+  })
+
+  return ok(res, { project }, 201)
+}))
+
+// GET /api/v1/projects
+router.get('/', requireAuth, asyncWrapper(async (req, res) => {
+  const userId = getUserId(req)
+  const projects = await Project.find({ userId })
+    .sort({ createdAt: -1 })
+    .select('-originalSketchBase64') // don't return heavy base64 in list
+    .lean()
+  return ok(res, { projects })
+}))
+
+// GET /api/v1/projects/:id
+router.get('/:id', requireAuth, asyncWrapper(async (req, res) => {
   const userId = getUserId(req)
   const project = await Project.findOne({ _id: req.params.id, userId }).lean()
-  if (!project) return res.status(404).json({ error: 'Not found' })
-  res.json(project)
-})
+  if (!project) return fail(res, 'Project not found', 404)
+  return ok(res, { project })
+}))
 
-// PATCH /api/projects/:id — update title, thumbnail, or metadata
-router.patch('/:id', requireAuth, async (req: Request, res: Response) => {
+// PATCH /api/v1/projects/:id
+router.patch('/:id', requireAuth, asyncWrapper(async (req, res) => {
   const userId = getUserId(req)
   const allowed = ['title', 'thumbnailBase64', 'isPublic']
   const updates: Record<string, unknown> = {}
@@ -32,20 +55,20 @@ router.patch('/:id', requireAuth, async (req: Request, res: Response) => {
     updates,
     { new: true },
   ).lean()
-  if (!project) return res.status(404).json({ error: 'Not found' })
-  res.json(project)
-})
+  if (!project) return fail(res, 'Project not found', 404)
+  return ok(res, { project })
+}))
 
-// DELETE /api/projects/:id
-router.delete('/:id', requireAuth, async (req: Request, res: Response) => {
+// DELETE /api/v1/projects/:id
+router.delete('/:id', requireAuth, asyncWrapper(async (req, res) => {
   const userId = getUserId(req)
   const result = await Project.deleteOne({ _id: req.params.id, userId })
-  if (result.deletedCount === 0) return res.status(404).json({ error: 'Not found' })
-  res.json({ success: true })
-})
+  if (result.deletedCount === 0) return fail(res, 'Project not found', 404)
+  return ok(res, { deleted: true })
+}))
 
-// POST /api/projects/:id/share — generate public share token
-router.post('/:id/share', requireAuth, async (req: Request, res: Response) => {
+// POST /api/v1/projects/:id/share
+router.post('/:id/share', requireAuth, asyncWrapper(async (req, res) => {
   const userId = getUserId(req)
   const shareToken = crypto.randomUUID()
   const project = await Project.findOneAndUpdate(
@@ -53,9 +76,9 @@ router.post('/:id/share', requireAuth, async (req: Request, res: Response) => {
     { shareToken, isPublic: true },
     { new: true },
   ).lean()
-  if (!project) return res.status(404).json({ error: 'Not found' })
+  if (!project) return fail(res, 'Project not found', 404)
   const origin = process.env.CORS_ORIGIN ?? 'http://localhost:5173'
-  res.json({ shareUrl: `${origin}/share/${shareToken}` })
-})
+  return ok(res, { shareUrl: `${origin}/share/${shareToken}` })
+}))
 
 export default router

@@ -4,42 +4,41 @@ import cors from 'cors'
 import helmet from 'helmet'
 import mongoose from 'mongoose'
 import { clerkMiddleware } from '@clerk/express'
-import { PORT, CORS_ORIGIN } from './lib/constants'
-import analyzeRouter from './routes/analyze'
 import projectsRouter from './routes/projects'
 import shareRouter from './routes/share'
 import userRouter from './routes/user'
+import { errorHandler } from './middleware/errorHandler'
+import { PORT, CORS_ORIGIN } from './lib/constants'
 
 const app = express()
 
-// ── Security ──────────────────────────────────────────────────────────────────
+// ── Security & parsing ────────────────────────────────────────────────────────
 app.use(helmet())
 app.use(cors({ origin: CORS_ORIGIN, credentials: true }))
 app.use(express.json({ limit: '15mb' }))
 
-// ── Clerk Auth Middleware ─────────────────────────────────────────────────────
+// ── Clerk Auth ────────────────────────────────────────────────────────────────
 app.use(clerkMiddleware())
 
-// ── Routes ────────────────────────────────────────────────────────────────────
-app.use('/api/analyze', analyzeRouter)
-app.use('/api/projects', projectsRouter)
-app.use('/api/share', shareRouter)
-app.use('/api/user', userRouter)
+// ── Routes (v1) ───────────────────────────────────────────────────────────────
+// Note: No /api/analyze anymore — Claude AI runs in browser via Puter.js for FREE
+app.use('/api/v1/projects', projectsRouter)
+app.use('/api/v1/share', shareRouter)
+app.use('/api/v1/user', userRouter)
 
 // ── Health check ──────────────────────────────────────────────────────────────
-app.get('/health', (_req, res) => res.json({ status: 'ok' }))
+app.get('/health', (_req, res) => res.json({ status: 'ok', version: 'v1' }))
 
-// ── DB + Start ────────────────────────────────────────────────────────────────
+// ── Global error handler ──────────────────────────────────────────────────────
+app.use(errorHandler)
+
+// ── Start ─────────────────────────────────────────────────────────────────────
 const start = async () => {
   const mongoUri = process.env.MONGODB_URI
   if (!mongoUri) throw new Error('MONGODB_URI is required in .env')
-
   await mongoose.connect(mongoUri)
   console.log('✅ MongoDB connected')
-
-  app.listen(PORT, () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`)
-  })
+  app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`))
 }
 
 start().catch((err) => {
