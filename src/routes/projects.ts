@@ -11,13 +11,13 @@ router.post('/', requireAuth, asyncWrapper(async (req, res) => {
   const userId = getUserId(req)
   if (!userId) return fail(res, 'Unauthorized', 401)
 
-  const { title, renderData, originalSketchBase64 } = req.body
-  if (!renderData) return fail(res, 'renderData is required')
+  const { title, renderedImageUrl, originalSketchBase64 } = req.body
+  if (!renderedImageUrl) return fail(res, 'renderedImageUrl is required')
 
   const project = await Project.create({
     userId,
     title: title ?? 'Untitled Project',
-    renderData,
+    renderedImageUrl,
     originalSketchBase64,
   })
 
@@ -45,7 +45,7 @@ router.get('/:id', requireAuth, asyncWrapper(async (req, res) => {
 // PATCH /api/v1/projects/:id
 router.patch('/:id', requireAuth, asyncWrapper(async (req, res) => {
   const userId = getUserId(req)
-  const allowed = ['title', 'thumbnailBase64', 'isPublic']
+  const allowed = ['title', 'isPublic', 'renderedImageUrl']
   const updates: Record<string, unknown> = {}
   for (const key of allowed) {
     if (req.body[key] !== undefined) updates[key] = req.body[key]
