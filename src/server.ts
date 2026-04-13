@@ -5,6 +5,7 @@ import helmet from 'helmet'
 import mongoose from 'mongoose'
 import { clerkMiddleware } from '@clerk/express'
 import projectsRouter from './routes/projects'
+import generateRouter from './routes/generate'
 import shareRouter from './routes/share'
 import userRouter from './routes/user'
 import { errorHandler } from './middleware/errorHandler'
@@ -21,7 +22,7 @@ app.use(express.json({ limit: '15mb' }))
 app.use(clerkMiddleware())
 
 // ── Routes (v1) ───────────────────────────────────────────────────────────────
-// Note: No /api/analyze anymore — Claude AI runs in browser via Puter.js for FREE
+app.use('/api/v1/generate', generateRouter)
 app.use('/api/v1/projects', projectsRouter)
 app.use('/api/v1/share', shareRouter)
 app.use('/api/v1/user', userRouter)
