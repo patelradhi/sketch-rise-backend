@@ -1,8 +1,9 @@
 import { Router } from 'express'
 import { GoogleGenAI } from '@google/genai'
-import { requireAuth } from '../middleware/clerkAuth'
+import { requireAuth, getUserId } from '../middleware/clerkAuth'
 import { ok, fail } from '../utils/apiResponse'
 import { asyncWrapper } from '../utils/asyncWrapper'
+import { uploadImage } from '../lib/cloudinary'
 
 const router = Router()
 
@@ -37,51 +38,70 @@ STYLE & LIGHTING:
 - Finish: professional architectural visualization; no text, no watermarks, no logos.
 `.trim()
 
-// POST /api/v1/generate — generate 3D render from 2D floor plan
+// POST /api/v1/generate — generate 3D render from 2D floor plan, store both on Cloudinary
 router.post('/', requireAuth, asyncWrapper(async (req, res) => {
-  const { base64Image, mimeType } = req.body
+  const userId = getUserId(req)
+  if (!userId) return fail(res, 'Unauthorized', 401)
 
+  const { base64Image, mimeType } = req.body
   if (!base64Image) return fail(res, 'base64Image is required')
 
-  const apiKey = process.env.GEMINI_API_KEY
-  if (!apiKey) return fail(res, 'Gemini API key not configured', 500)
+  const inputMime = mimeType || 'image/jpeg'
 
-  const ai = new GoogleGenAI({ apiKey })
+  let renderedBase64: string
+  let renderedMime: string
 
-  const result = await ai.models.generateContent({
-    model: 'gemini-3.1-flash-image-preview',
-    contents: [
-      {
-        role: 'user',
-        parts: [
-          { text: FLOOR_PLAN_PROMPT },
-          {
-            inlineData: {
-              mimeType: mimeType || 'image/jpeg',
-              data: base64Image,
+  if (process.env.MOCK_GEMINI === 'true') {
+    // Demo mode — echo the 2D sketch back as the "3D" render.
+    renderedBase64 = base64Image
+    renderedMime = inputMime
+    await new Promise((r) => setTimeout(r, 1500))
+  } else {
+    const apiKey = process.env.GEMINI_API_KEY
+    if (!apiKey) return fail(res, 'Gemini API key not configured', 500)
+
+    const ai = new GoogleGenAI({ apiKey })
+
+    const result = await ai.models.generateContent({
+      model: 'gemini-3.1-flash-image-preview',
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            { text: FLOOR_PLAN_PROMPT },
+            {
+              inlineData: {
+                mimeType: inputMime,
+                data: base64Image,
+              },
             },
-          },
-        ],
+          ],
+        },
+      ],
+      config: {
+        responseModalities: ['TEXT', 'IMAGE'],
       },
-    ],
-    config: {
-      responseModalities: ['TEXT', 'IMAGE'],
-    },
-  })
+    })
 
-  // Extract image from response
-  const parts = result.candidates?.[0]?.content?.parts
-  if (!parts) return fail(res, 'AI returned no response. Please try again.', 500)
+    const parts = result.candidates?.[0]?.content?.parts
+    if (!parts) return fail(res, 'AI returned no response. Please try again.', 500)
 
-  const imagePart = parts.find((p: any) => p.inlineData)
-  if (!imagePart?.inlineData) {
-    const textFeedback = parts.find((p: any) => p.text)?.text
-    return fail(res, textFeedback || 'AI returned no image. Please try a clearer floor plan.', 500)
+    const imagePart = parts.find((p: any) => p.inlineData)
+    if (!imagePart?.inlineData?.data) {
+      const textFeedback = parts.find((p: any) => p.text)?.text
+      return fail(res, textFeedback || 'AI returned no image. Please try a clearer floor plan.', 500)
+    }
+
+    renderedBase64 = imagePart.inlineData.data
+    renderedMime = imagePart.inlineData.mimeType || 'image/png'
   }
 
-  const imageUrl = `data:${imagePart.inlineData.mimeType || 'image/png'};base64,${imagePart.inlineData.data}`
+  const [originalSketchUrl, renderedImageUrl] = await Promise.all([
+    uploadImage(base64Image, inputMime, '2d', userId),
+    uploadImage(renderedBase64, renderedMime, '3d', userId),
+  ])
 
-  return ok(res, { imageUrl })
+  return ok(res, { originalSketchUrl, renderedImageUrl })
 }))
 
 export default router
