@@ -16,7 +16,7 @@ const UserSchema = new Schema<IUser>(
     username: { type: String },
     plan: { type: String, enum: ['free', 'pro'], default: 'free' },
     generationsUsed: { type: Number, default: 0 },
-    generationsLimit: { type: Number, default: 10 },
+    generationsLimit: { type: Number, default: 3 },
   },
   { timestamps: true },
 )

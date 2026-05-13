@@ -4,6 +4,7 @@ import { requireAuth, getUserId } from '../middleware/clerkAuth'
 import { ok, fail } from '../utils/apiResponse'
 import { asyncWrapper } from '../utils/asyncWrapper'
 import { uploadImage } from '../lib/cloudinary'
+import User from '../models/User'
 
 const router = Router()
 
@@ -47,6 +48,21 @@ router.post('/', requireAuth, asyncWrapper(async (req, res) => {
   if (!base64Image) return fail(res, 'base64Image is required')
 
   const inputMime = mimeType || 'image/jpeg'
+
+  // Enforce per-user generation quota (free plan)
+  const user = await User.findOneAndUpdate(
+    { clerkId: userId },
+    { $setOnInsert: { clerkId: userId } },
+    { new: true, upsert: true },
+  )
+  if (user.plan === 'free' && user.generationsUsed >= user.generationsLimit) {
+    return fail(
+      res,
+      "You've reached your free generation limit. Upgrade to continue.",
+      403,
+      'LIMIT_REACHED',
+    )
+  }
 
   let renderedBase64: string
   let renderedMime: string
@@ -100,6 +116,8 @@ router.post('/', requireAuth, asyncWrapper(async (req, res) => {
     uploadImage(base64Image, inputMime, '2d', userId),
     uploadImage(renderedBase64, renderedMime, '3d', userId),
   ])
+
+  await User.updateOne({ clerkId: userId }, { $inc: { generationsUsed: 1 } })
 
   return ok(res, { originalSketchUrl, renderedImageUrl })
 }))
